@@ -203,12 +203,14 @@ class LoggedInUser(HttpUser):
                 headers=headers,
                 name="Update Task Status",
             )
+            print("response============>", res)
             update_result = res.json()
             if update_result.get("status") is True:
                 logger.info(f"✅ Task updated for {self.user['email']}")
             else:
                 logger.warning(f"❌ Task update failed for {self.user['email']}")
         except Exception as e:
+            print(f"❌ Update Task exception for {self.user['email']}: {e}")
             logger.error(f"❌ Update Task exception for {self.user['email']}: {e}")
 
     def _stop_lab(self, headers, report):
