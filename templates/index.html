@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whizlabs Load Tester</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 20px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
+        }
+
+        h1 {
+            font-size: 26px;
+            color: #f8fafc;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-badge.idle {
+            background: rgba(148, 163, 184, 0.15);
+            color: #94a3b8;
+        }
+
+        .status-badge.running {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+        }
+
+        .status-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .status-badge.running .dot {
+            animation: pulse-dot 1.5s infinite;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+        }
+
+        .card h2 {
+            font-size: 14px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        /* Setup area: 2-column layout */
+        .setup-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 700px) {
+            .setup-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Upload zone */
+        .upload-zone {
+            border: 2px dashed #475569;
+            border-radius: 8px;
+            padding: 28px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .upload-zone input {
+            display: none;
+        }
+
+        .upload-zone p {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .upload-zone .icon {
+            font-size: 32px;
+            margin-bottom: 4px;
+        }
+
+        .upload-status {
+            margin-top: 10px;
+            font-size: 13px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .upload-status.success {
+            display: block;
+            background: rgba(34, 197, 94, 0.1);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .upload-status.error {
+            display: block;
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        /* Form */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group.full {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 9px 12px;
+            color: #e2e8f0;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .form-group input:focus {
+            border-color: #3b82f6;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .btn {
+            padding: 10px 22px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #2563eb;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        /* ---- Metric Cards ---- */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 700px) {
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .metric-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #f8fafc;
+            line-height: 1.2;
+        }
+
+        .metric-card .label {
+            font-size: 12px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 6px;
+        }
+
+        .metric-card.success .value {
+            color: #4ade80;
+        }
+
+        .metric-card.danger .value {
+            color: #f87171;
+        }
+
+        .metric-card.info .value {
+            color: #60a5fa;
+        }
+
+        .metric-card.warn .value {
+            color: #fbbf24;
+        }
+
+        /* ---- Stats Table ---- */
+        .stats-table-wrapper {
+            overflow-x: auto;
+        }
+
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .stats-table th {
+            text-align: left;
+            padding: 10px 12px;
+            color: #94a3b8;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .stats-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+            color: #cbd5e1;
+        }
+
+        .stats-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .stats-table .agg-row {
+            background: rgba(59, 130, 246, 0.06);
+            font-weight: 600;
+        }
+
+        .stats-table .agg-row td {
+            color: #f8fafc;
+        }
+
+        .stats-table td.num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        .stats-table .method {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .stats-table .method.post {
+            color: #fbbf24;
+        }
+
+        .stats-table .method.get {
+            color: #4ade80;
+        }
+
+        .fail-text {
+            color: #f87171;
+        }
+
+        .ok-text {
+            color: #4ade80;
+        }
+
+        /* ---- User Activity Feed ---- */
+        .user-feed {
+            max-height: 260px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .user-event {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #0f172a;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .user-event .evt-icon {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 12px;
+        }
+
+        .user-event.success .evt-icon {
+            background: rgba(34, 197, 94, 0.15);
+        }
+
+        .user-event.error .evt-icon {
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        .user-event.warn .evt-icon {
+            background: rgba(251, 191, 36, 0.15);
+        }
+
+        .user-event.info .evt-icon {
+            background: rgba(96, 165, 250, 0.15);
+        }
+
+        .user-event .evt-body {
+            flex: 1;
+        }
+
+        .user-event .evt-time {
+            font-size: 11px;
+            color: #64748b;
+            flex-shrink: 0;
+        }
+
+        /* ---- Logs (collapsible) ---- */
+        .log-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .log-toggle .arrow {
+            transition: transform 0.2s;
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        .log-toggle .arrow.open {
+            transform: rotate(90deg);
+        }
+
+        .log-box {
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 14px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 350px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #cbd5e1;
+            border: 1px solid #1e293b;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .log-box.visible {
+            display: block;
+        }
+
+        .log-box .log-success {
+            color: #4ade80;
+        }
+
+        .log-box .log-error {
+            color: #f87171;
+        }
+
+        .log-box .log-warn {
+            color: #fbbf24;
+        }
+
+        .log-box .log-info {
+            color: #60a5fa;
+        }
+
+        /* ---- Dashboard Panels ---- */
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.visible {
+            display: block;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 800px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>Whizlabs Load Tester</h1>
+                <p class="subtitle">Upload a CSV with user credentials and run load tests against the Trainocate
+                    Platform</p>
+            </div>
+            <span class="status-badge idle" id="statusBadge">
+                <span class="dot"></span>
+                Idle
+            </span>
+        </div>
+
+        <!-- Setup: Upload + Config side by side -->
+        <div class="setup-grid">
+            <div class="card" style="margin-bottom:0">
+                <h2>Upload Users CSV</h2>
+                <div class="upload-zone" id="dropZone" onclick="document.getElementById('csvInput').click()">
+                    <div class="icon">&#128196;</div>
+                    <p><strong>Click to upload</strong> or drag and drop</p>
+                    <p>CSV / Excel with <code>email</code> &amp; <code>password</code></p>
+                    <input type="file" id="csvInput" accept=".csv,.xlsx,.xls">
+                </div>
+                <div class="upload-status" id="uploadStatus"></div>
+            </div>
+
+            <div class="card" style="margin-bottom:0">
+                <h2>Configure &amp; Run</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Total Users</label>
+                        <input type="number" id="users" value="10" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Spawn Rate (users/sec)</label>
+                        <input type="number" id="spawnRate" value="5" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Duration</label>
+                        <input type="text" id="duration" value="5m" placeholder="e.g. 5m, 1h">
+                    </div>
+                    <div class="form-group">
+                        <label>Host</label>
+                        <input type="text" id="host" value="https://lexs.trainocate.co.jp">
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="startBtn" onclick="startTest()">Start Test</button>
+                    <button class="btn btn-danger" id="stopBtn" onclick="stopTest()" disabled>Stop</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard (shown after test starts) -->
+        <div class="dashboard" id="dashboard">
+            <!-- Metric summary cards -->
+            <div class="metrics-grid" style="margin-top:20px">
+                <div class="metric-card">
+                    <div class="value" id="metricReqs">0</div>
+                    <div class="label">Total Requests</div>
+                </div>
+                <div class="metric-card success">
+                    <div class="value" id="metricPass">0</div>
+                    <div class="label">Successful</div>
+                </div>
+                <div class="metric-card danger">
+                    <div class="value" id="metricFail">0</div>
+                    <div class="label">Failed</div>
+                </div>
+                <div class="metric-card info">
+                    <div class="value" id="metricAvg">-</div>
+                    <div class="label">Avg Response (ms)</div>
+                </div>
+            </div>
+
+            <!-- Stats Table + User Activity -->
+            <div class="two-col">
+                <div class="card">
+                    <h2>Endpoint Metrics</h2>
+                    <div class="stats-table-wrapper">
+                        <table class="stats-table" id="statsTable">
+                            <thead>
+                                <tr>
+                                    <th>Method</th>
+                                    <th>Endpoint</th>
+                                    <th style="text-align:right">Reqs</th>
+                                    <th style="text-align:right">Fails</th>
+                                    <th style="text-align:right">Avg</th>
+                                    <th style="text-align:right">Min</th>
+                                    <th style="text-align:right">Max</th>
+                                    <th style="text-align:right">req/s</th>
+                                </tr>
+                            </thead>
+                            <tbody id="statsBody">
+                                <tr>
+                                    <td colspan="8" class="empty-state">Waiting for data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>User Activity</h2>
+                    <div class="user-feed" id="userFeed">
+                        <div class="empty-state">Waiting for events...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Raw Logs (collapsible) -->
+            <div class="card">
+                <div class="log-toggle" onclick="toggleLogs()">
+                    <h2 style="margin-bottom:0">Raw Logs</h2>
+                    <span class="arrow" id="logArrow">&#9654;</span>
+                </div>
+                <div class="log-box" id="logBox"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let csvUploaded = false;
+        let feedCleared = false;
+        let statsData = {};
+        let totalReqs = 0, totalFails = 0, totalAvg = 0;
+
+        // --- Upload ---
+        const dropZone = document.getElementById('dropZone');
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+        });
+        document.getElementById('csvInput').addEventListener('change', e => {
+            if (e.target.files.length) uploadFile(e.target.files[0]);
+        });
+
+        function uploadFile(file) {
+            const status = document.getElementById('uploadStatus');
+            const formData = new FormData();
+            formData.append('csv_file', file);
+            status.className = 'upload-status';
+            status.textContent = 'Uploading...';
+            status.style.display = 'block';
+
+            fetch('/upload', { method: 'POST', body: formData })
+                .then(r => r.json().then(data => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    if (ok) {
+                        status.className = 'upload-status success';
+                        status.textContent = `Uploaded ${data.count} users from ${file.name}`;
+                        csvUploaded = true;
+                    } else {
+                        status.className = 'upload-status error';
+                        status.textContent = data.error;
+                    }
+                })
+                .catch(() => {
+                    status.className = 'upload-status error';
+                    status.textContent = 'Upload failed - server error';
+                });
+        }
+
+        // --- Test Controls ---
+        function startTest() {
+            if (!csvUploaded) { alert('Please upload a CSV file first.'); return; }
+
+            const payload = {
+                users: parseInt(document.getElementById('users').value),
+                spawn_rate: parseInt(document.getElementById('spawnRate').value),
+                duration: document.getElementById('duration').value,
+                host: document.getElementById('host').value,
+            };
+
+            fetch('/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            })
+                .then(r => r.json().then(data => ({ ok: r.ok, data })))
+                .then(({ ok, data }) => {
+                    if (ok) {
+                        setRunning(true);
+                        resetDashboard();
+                        document.getElementById('dashboard').classList.add('visible');
+                        connectLogs();
+                    } else {
+                        alert(data.error);
+                    }
+                });
+        }
+
+        function stopTest() {
+            fetch('/stop', { method: 'POST' }).then(() => setRunning(false));
+        }
+
+        function resetDashboard() {
+            statsData = {};
+            totalReqs = 0; totalFails = 0; totalAvg = 0;
+            feedCleared = false;
+            document.getElementById('metricReqs').textContent = '0';
+            document.getElementById('metricPass').textContent = '0';
+            document.getElementById('metricFail').textContent = '0';
+            document.getElementById('metricAvg').textContent = '-';
+            document.getElementById('statsBody').innerHTML = '<tr><td colspan="8" class="empty-state">Waiting for data...</td></tr>';
+            document.getElementById('userFeed').innerHTML = '<div class="empty-state">Waiting for events...</div>';
+            document.getElementById('logBox').innerHTML = '';
+        }
+
+        // --- SSE Log Parsing ---
+        function connectLogs() {
+            if (eventSource) eventSource.close();
+            eventSource = new EventSource('/logs');
+
+            eventSource.onmessage = (e) => {
+                const line = e.data;
+                appendRawLog(line);
+                parseAndRoute(line);
+            };
+
+            eventSource.onerror = () => {
+                eventSource.close();
+                eventSource = null;
+            };
+        }
+
+        function appendRawLog(line) {
+            const logBox = document.getElementById('logBox');
+            const span = document.createElement('span');
+            if (line.includes('✅')) span.className = 'log-success';
+            else if (line.includes('❌') || line.includes('💥')) span.className = 'log-error';
+            else if (line.includes('⚠️')) span.className = 'log-warn';
+            else if (line.includes('📊') || line.includes('➤')) span.className = 'log-info';
+            span.textContent = line + '\n';
+            logBox.appendChild(span);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function parseAndRoute(line) {
+            // Detect test complete
+            if (line.includes('[TEST COMPLETE]')) {
+                setRunning(false);
+                return;
+            }
+
+            // Parse Locust stats table rows
+            // Format: TYPE  NAME  # reqs  # fails | Avg Min Max Med | req/s failures/s
+            const statsMatch = line.match(/^(GET|POST)\s+(.+?)\s{2,}(\d+)\s+(\d+)\([\d.]+%\)\s*\|\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\|\s*([\d.]+)\s+([\d.]+)$/);
+            if (statsMatch) {
+                const [, method, name, reqs, fails, avg, min, max, med, rps, fps] = statsMatch;
+                statsData[name.trim()] = {
+                    method, name: name.trim(),
+                    reqs: parseInt(reqs), fails: parseInt(fails),
+                    avg: parseInt(avg), min: parseInt(min), max: parseInt(max), med: parseInt(med),
+                    rps: parseFloat(rps), fps: parseFloat(fps)
+                };
+                renderStatsTable();
+                return;
+            }
+
+            // Parse Aggregated row
+            const aggMatch = line.match(/Aggregated\s+(\d+)\s+(\d+)\([\d.]+%\)\s*\|\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\|\s*([\d.]+)\s+([\d.]+)$/);
+            if (aggMatch) {
+                totalReqs = parseInt(aggMatch[1]);
+                totalFails = parseInt(aggMatch[2]);
+                totalAvg = parseInt(aggMatch[3]);
+                document.getElementById('metricReqs').textContent = totalReqs;
+                document.getElementById('metricPass').textContent = totalReqs - totalFails;
+                document.getElementById('metricFail').textContent = totalFails;
+                document.getElementById('metricAvg').textContent = totalAvg > 0 ? totalAvg + 'ms' : '-';
+                return;
+            }
+
+            // Parse user events
+            if (line.includes('🔐') || line.includes('✅') || line.includes('❌') || line.includes('⚠️') || line.includes('💥') || line.includes('📊') || line.includes('➤')) {
+                addUserEvent(line);
+            }
+        }
+
+        function renderStatsTable() {
+            const tbody = document.getElementById('statsBody');
+            const entries = Object.values(statsData);
+            if (entries.length === 0) return;
+
+            let html = '';
+            for (const s of entries) {
+                const methodClass = s.method.toLowerCase();
+                const failClass = s.fails > 0 ? 'fail-text' : 'ok-text';
+                html += `<tr>
+                    <td><span class="method ${methodClass}">${s.method}</span></td>
+                    <td>${s.name}</td>
+                    <td class="num">${s.reqs}</td>
+                    <td class="num ${failClass}">${s.fails}</td>
+                    <td class="num">${s.avg}ms</td>
+                    <td class="num">${s.min}ms</td>
+                    <td class="num">${s.max}ms</td>
+                    <td class="num">${s.rps.toFixed(1)}</td>
+                </tr>`;
+            }
+
+            // Aggregated row
+            if (totalReqs > 0) {
+                const failClass = totalFails > 0 ? 'fail-text' : 'ok-text';
+                html += `<tr class="agg-row">
+                    <td></td>
+                    <td>Aggregated</td>
+                    <td class="num">${totalReqs}</td>
+                    <td class="num ${failClass}">${totalFails}</td>
+                    <td class="num">${totalAvg}ms</td>
+                    <td class="num">-</td>
+                    <td class="num">-</td>
+                    <td class="num">-</td>
+                </tr>`;
+            }
+
+            tbody.innerHTML = html;
+        }
+
+        function addUserEvent(line) {
+            const feed = document.getElementById('userFeed');
+            if (!feedCleared) {
+                feed.innerHTML = '';
+                feedCleared = true;
+            }
+
+            // Determine event type
+            let icon = '&#9679;', cls = 'info';
+            if (line.includes('✅')) { icon = '&#10003;'; cls = 'success'; }
+            else if (line.includes('❌') || line.includes('💥')) { icon = '&#10007;'; cls = 'error'; }
+            else if (line.includes('⚠️')) { icon = '!'; cls = 'warn'; }
+            else if (line.includes('🔐')) { icon = '&#128274;'; cls = 'info'; }
+            else if (line.includes('📊') || line.includes('➤')) { icon = '&#9632;'; cls = 'info'; }
+
+            // Extract timestamp
+            const tsMatch = line.match(/\d{2}:\d{2}:\d{2}/);
+            const ts = tsMatch ? tsMatch[0] : '';
+
+            // Clean up the display text
+            let text = line;
+            // Remove timestamp prefix like [2026-04-10 11:39:16,240] Host/LEVEL/module:
+            text = text.replace(/^\[.*?\]\s*\S+\/\w+\/\S+:\s*/, '');
+            // Remove leading newlines
+            text = text.replace(/^\n+/, '');
+
+            if (!text.trim()) return;
+
+            const div = document.createElement('div');
+            div.className = `user-event ${cls}`;
+            div.innerHTML = `
+                <span class="evt-icon">${icon}</span>
+                <span class="evt-body">${escapeHtml(text.trim())}</span>
+                <span class="evt-time">${ts}</span>
+            `;
+
+            feed.prepend(div);
+
+            // Keep max 50 events
+            while (feed.children.length > 50) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+
+        function escapeHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
+        // --- UI Helpers ---
+        function toggleLogs() {
+            const box = document.getElementById('logBox');
+            const arrow = document.getElementById('logArrow');
+            box.classList.toggle('visible');
+            arrow.classList.toggle('open');
+        }
+
+        function setRunning(running) {
+            document.getElementById('startBtn').disabled = running;
+            document.getElementById('stopBtn').disabled = !running;
+            const badge = document.getElementById('statusBadge');
+            badge.innerHTML = `<span class="dot"></span> ${running ? 'Running' : 'Idle'}`;
+            badge.className = `status-badge ${running ? 'running' : 'idle'}`;
+        }
+
+        // Check status on load
+        fetch('/status').then(r => r.json()).then(data => {
+            if (data.running) {
+                setRunning(true);
+                document.getElementById('dashboard').classList.add('visible');
+                connectLogs();
+            }
+        });
+    </script>
+</body>
+
+</html>
