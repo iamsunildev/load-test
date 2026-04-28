@@ -269,9 +269,9 @@ class LoggedInUser(HttpUser):
         report = {}
 
         try:
-            # self._navigate_pages(report)
-            # self._start_lab(headers, lab_payload, report)
-            self._stop_lab(headers, report)
+            self._navigate_pages(report)
+            self._start_lab(headers, lab_payload, report)
+            # self._stop_lab(headers, report)
         except StopUser:
             raise
         except Exception as e:
